@@ -1,0 +1,1 @@
+Expose session-scoped `personal_relevance_score` in the versioned agent JSON export when personal-interest context influenced ranking, without exporting the underlying interest terms.

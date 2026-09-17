@@ -692,7 +692,7 @@ def candidate_primary_item(candidate: Candidate) -> SourceItem | None:
     return candidate.source_items[0]
 
 
-AGENT_EXPORT_SCHEMA_VERSION = "1.3"
+AGENT_EXPORT_SCHEMA_VERSION = "1.4"
 
 
 def without_sources(report: Report, excluded_sources: set[str]) -> Report:
@@ -860,6 +860,18 @@ def _agent_generated_at(value: str) -> str:
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _candidate_personal_relevance(candidate: Candidate) -> float | None:
+    """Return the strongest session-scoped personal relevance signal, if present."""
+    values = [
+        item.metadata.get("personal_relevance")
+        for item in candidate.source_items
+        if isinstance(item.metadata.get("personal_relevance"), (int, float))
+    ]
+    if not values:
+        return None
+    return round(max(0.0, min(1.0, float(max(values)))), 4)
+
+
 def to_agent_export(
     report: Report,
     *,
@@ -923,6 +935,7 @@ def to_agent_export(
                         max(0.0, min(1.0, candidate.final_score / 100.0)),
                         4,
                     ),
+                    "personal_relevance_score": _candidate_personal_relevance(candidate),
                     "cluster": cluster_index,
                 }
             )
