@@ -44,6 +44,7 @@ The engine's `.env` reader doesn't expand `$HOME` — only the tilde, via `Path(
 **Per-run overrides:**
 
 - `--save-dir <path>` - one-off output location. **Flag wins over env var.** If neither flag nor env var is set, the engine does not write a file (DB persistence is independent — see `LAST30DAYS_STORE` below).
+- `--interest-context <term>` - optional, repeatable session-only ranking context for agent/orchestrator integrations. Supply concise interests such as `GitHub Actions`, `MCP`, or `human approval`; do **not** pass raw conversation history, private-document text, secrets, or a durable user profile. The engine does not persist these terms as configuration. With no flag, ranking remains unchanged.
 - `--output <file>` - write the rendered output to an exact file path, using the format selected by `--emit`.
 - `--json-profile {agent,raw}` - select the research JSON shape used with `--emit=json`. `agent` is the default, versioned workflow contract; `raw` preserves the full internal `Report` dump for debugging and power users. See the [JSON export reference](docs/reference/json-export.md).
 - `--corpus <dir>` - add a local `.md`/`.txt` directory as a private ranked source; repeat the flag for multiple directories. PDFs are extracted only when `pdftotext` is on PATH and otherwise skip with a note. File modification time supplies recency, so the normal research window applies.

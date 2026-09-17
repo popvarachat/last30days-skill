@@ -669,6 +669,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON export profile for --emit=json (default: agent)",
     )
     parser.add_argument("--search", help="Comma-separated source list")
+    parser.add_argument(
+        "--interest-context", action="append", default=[], metavar="TERM",
+        help="Session-scoped interest term for personalized ranking (repeatable; pass concise terms, not raw conversation text)",
+    )
     parser.add_argument("--quick", action="store_true", help="Lower-latency retrieval profile")
     parser.add_argument("--deep", action="store_true", help="Higher-recall retrieval profile")
     freshness_group = parser.add_mutually_exclusive_group()
@@ -3184,6 +3188,8 @@ def _main(
             return _run_store_key(store_key_name)
 
     config = env.get_config(policy=_config_policy_for_args(args, topic, extra_argv))
+    if args.interest_context:
+        config["_PERSONAL_INTEREST_TERMS"] = list(args.interest_context)
     # One memo per command: comparison mode runs pipeline.run per entity in
     # parallel, so the reset must not live inside the pipeline.
     http.reset_reddit_keyless_memo()
