@@ -1,5 +1,7 @@
 import unittest
 
+import last30days as cli
+from lib import pipeline
 from skills.last30days.scripts.lib import personalization, schema, signals
 
 
@@ -67,6 +69,29 @@ class PersonalizationV3Tests(unittest.TestCase):
         )
         self.assertAlmostEqual(expected, ranked[0].local_rank_score)
         self.assertNotIn("personal_relevance", ranked[0].metadata)
+
+    def test_cli_accepts_repeatable_interest_context(self):
+        args = cli.build_parser().parse_args([
+            "test topic",
+            "--interest-context", "GitHub",
+            "--interest-context", "MCP human gate",
+        ])
+        self.assertEqual(["GitHub", "MCP human gate"], args.interest_context)
+
+    def test_mock_pipeline_applies_session_interest_metadata(self):
+        report = pipeline.run(
+            topic="test topic",
+            config={
+                "LAST30DAYS_REASONING_PROVIDER": "gemini",
+                "_PERSONAL_INTEREST_TERMS": ["GitHub", "MCP", "human gate"],
+            },
+            depth="quick",
+            requested_sources=["reddit", "x", "grounding"],
+            mock=True,
+        )
+        items = [item for values in report.items_by_source.values() for item in values]
+        self.assertTrue(items)
+        self.assertTrue(all("personal_relevance" in item.metadata for item in items))
 
 
 if __name__ == "__main__":

@@ -2370,6 +2370,7 @@ def run(
                     "github", project_items, from_date, to_date,
                     freshness_mode=plan.freshness_mode,
                     ranking_query=f"What are {', '.join(github_repos)} doing on GitHub?",
+                    personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
                 )
                 primary_label = plan.subqueries[0].label if plan.subqueries else "primary"
                 bundle.add_items(primary_label, "github", normalized)
@@ -2394,6 +2395,7 @@ def run(
                     "github", person_items, from_date, to_date,
                     freshness_mode=plan.freshness_mode,
                     ranking_query=f"What is @{github_user} doing on GitHub?",
+                    personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
                 )
                 # Use the first subquery's label so RRF can look up the weight
                 primary_label = plan.subqueries[0].label if plan.subqueries else "primary"
@@ -2448,6 +2450,7 @@ def run(
             plan.freshness_mode,
             reference_date=to_date,
             max_days=lookback_window_days,
+            personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
         )
         corpus_items = signals.prune_low_relevance(corpus_items)
         corpus_items = dedupe.dedupe_items(corpus_items)
@@ -2617,6 +2620,7 @@ def run(
                 # X defers its relevance floor until resolved_handles exists.
                 # Everything else prunes here as before.
                 defer_relevance_prune=(source == "x"),
+                personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
             )
             # Jobs is exempt from per_stream_limit: a careers board is a complete
             # snapshot of open roles, and truncating it to the default 12 drops
@@ -3215,6 +3219,7 @@ def _normalize_score_dedupe(
     first_party_handles: Iterable[str] | None = None,
     first_party_by_source: Mapping[str, Iterable[str]] | None = None,
     defer_relevance_prune: bool = False,
+    personal_interest_terms: Iterable[str] | None = None,
 ) -> list[schema.SourceItem]:
     """Normalize, annotate, prune, dedupe, and extract snippets for a batch of raw items.
 
@@ -3242,6 +3247,7 @@ def _normalize_score_dedupe(
         freshness_mode,
         reference_date=to_date,
         max_days=lookback_window_days,
+        personal_interest_terms=personal_interest_terms,
     )
     if source != "jobs" and not defer_relevance_prune:
         floor_handles = set(first_party_handles or ())
@@ -4221,6 +4227,7 @@ def _run_supplemental_searches(
                 freshness_mode=plan.freshness_mode,
                 ranking_query=ranking_query,
                 first_party_handles=first_party_for_normalize,
+                personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
             )
             # Deduplicate against Phase 1 URLs
             normalized = [item for item in normalized if item.url not in existing_urls]
@@ -4260,6 +4267,7 @@ def _run_supplemental_searches(
                 freshness_mode=plan.freshness_mode,
                 ranking_query=ranking_query,
                 first_party_handles=related_handles,
+                personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
             )
             # Deduplicate against all existing URLs (Phase 1 + primary handles)
             normalized = [item for item in normalized if item.url not in existing_urls]
@@ -4387,6 +4395,7 @@ def _retry_thin_sources(
             # later resolved-handle floor cannot recover a post that never
             # entered the bundle.
             defer_relevance_prune=(source == "x"),
+            personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
         )
         if source == "jobs":
             return source, normalized, outcome_note, (detail_note, detail_state)
@@ -4673,6 +4682,7 @@ def _serve_envelope_lanes(
             freshness_mode=plan.freshness_mode,
             ranking_query=ranking_query,
             first_party_handles=primary_handles,
+            personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
         )
         normalized = [item for item in normalized if item.url not in existing_urls]
         if normalized:
@@ -4685,6 +4695,7 @@ def _serve_envelope_lanes(
             freshness_mode=plan.freshness_mode,
             ranking_query=ranking_query,
             first_party_handles=related_handles,
+            personal_interest_terms=config.get("_PERSONAL_INTEREST_TERMS"),
         )
         normalized = [item for item in normalized if item.url not in existing_urls]
         if normalized:
