@@ -1,0 +1,1 @@
+Add a bounded JSON-in/JSON-out orchestrator bridge for n8n, Cloudflare, RDC, and other automation callers, using argv-based engine execution without shell command interpolation.
