@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 
-from . import dates, relevance, schema
+from . import dates, personalization, relevance, schema
 
 # Editorial signal-to-noise scores. Grounding (Google Search) is 1.0 baseline;
 # social platforms discounted for noise.
@@ -294,9 +294,15 @@ def annotate_stream(
     freshness_mode: str,
     reference_date: str | None = None,
     max_days: int = 30,
+    personal_interest_terms: Iterable[str] | None = None,
 ) -> list[schema.SourceItem]:
-    """Attach local scoring metadata and return items sorted by local_rank_score."""
+    """Attach local scoring metadata and return items sorted by local_rank_score.
+
+    Personal-interest terms are optional. When absent, ranking behavior remains
+    byte-for-byte equivalent to the legacy local scoring formula.
+    """
     prepared_query = ranking_query if isinstance(ranking_query, relevance.PreparedQuery) else relevance.PreparedQuery(ranking_query)
+    interest_terms = personalization.normalize_interest_terms(personal_interest_terms)
     engagement_scores = normalize([engagement_raw(item) for item in items])
     for item, eng_score in zip(items, engagement_scores, strict=True):
         item.local_relevance = local_relevance(item, prepared_query)
@@ -308,11 +314,20 @@ def annotate_stream(
         )
         item.engagement_score = eng_score
         item.source_quality = source_quality(item.source)
-        item.local_rank_score = (
-            0.65 * item.local_relevance
-            + 0.25 * (item.freshness / 100.0)
-            + 0.10 * ((eng_score or 0) / 100.0)
-        )
+        if interest_terms:
+            personal_score = personalization.annotate_personal_relevance(item, interest_terms)
+            item.local_rank_score = (
+                0.50 * item.local_relevance
+                + 0.20 * (item.freshness / 100.0)
+                + 0.10 * ((eng_score or 0) / 100.0)
+                + 0.20 * personal_score
+            )
+        else:
+            item.local_rank_score = (
+                0.65 * item.local_relevance
+                + 0.25 * (item.freshness / 100.0)
+                + 0.10 * ((eng_score or 0) / 100.0)
+            )
     return sorted(items, key=lambda item: item.local_rank_score or 0, reverse=True)
 
 
