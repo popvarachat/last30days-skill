@@ -118,3 +118,19 @@ def test_read_payload_rejects_oversized_file(tmp_path):
         assert "128 KiB" in str(exc)
     else:
         raise AssertionError("expected oversized request to be rejected")
+
+
+def test_write_json_response_uses_utf8_buffer_for_unicode(monkeypatch):
+    import io
+
+    class FakeStdout:
+        def __init__(self):
+            self.buffer = io.BytesIO()
+
+        def write(self, _value):
+            raise AssertionError("text encoding path should not be used when buffer exists")
+
+    fake = FakeStdout()
+    monkeypatch.setattr(bridge.sys, "stdout", fake)
+    bridge._write_json_response({"message": "agent 🤖"})
+    assert fake.buffer.getvalue().decode("utf-8") == '{"message": "agent 🤖"}\n'

@@ -1,0 +1,1 @@
+Fix the outbound RDC executor on Windows by selecting a Python 3.12+ repo runtime and forcing UTF-8 across the bridge/subprocess boundary so Unicode research results do not fail under cp1252 consoles.

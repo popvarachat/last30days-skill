@@ -78,3 +78,34 @@ def test_executor_forces_local_tool_path_and_disables_browser_reads_by_default()
     assert 'Path.home() / ".local" / "bin"' in text
     assert 'child_env.setdefault("FROM_BROWSER", "off")' in text
     assert "shell=True" not in text
+
+
+def test_executor_prefers_repo_venv_for_engine_runtime(tmp_path, monkeypatch):
+    module = _load_executor()
+    fake_root = tmp_path / "repo"
+    relative = Path("Scripts/python.exe") if module.os.name == "nt" else Path("bin/python")
+    python = fake_root / ".venv" / relative
+    python.parent.mkdir(parents=True)
+    python.write_text("", encoding="utf-8")
+    monkeypatch.setattr(module, "ROOT", fake_root)
+    command = module._bridge_command(tmp_path / "request.json")
+    assert command[0] == str(python)
+    assert "--request" in command
+
+
+def test_executor_decodes_bridge_output_as_utf8(monkeypatch):
+    module = _load_executor()
+    seen = {}
+
+    def fake_run(command, **kwargs):
+        seen.update(kwargs)
+        return module.subprocess.CompletedProcess(
+            command, 0, '{"ok": true, "result": {"schema_version": "1.5", "title": "AI 🤖"}}', ""
+        )
+
+    monkeypatch.setattr(module, "_bridge_command", lambda request_path: ["fake-python"])
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    outcome = module._run_bridge({"schema_version": "1.0", "topic": "GitHub"})
+    assert outcome["ok"] is True
+    assert seen["encoding"] == "utf-8"
+    assert seen["errors"] == "replace"

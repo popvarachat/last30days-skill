@@ -227,6 +227,15 @@ def _read_payload(path: str | None) -> Any:
     return json.loads(text)
 
 
+def _write_json_response(response: dict[str, Any]) -> None:
+    text = json.dumps(response, ensure_ascii=False, sort_keys=True) + "\n"
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        buffer.write(text.encode("utf-8"))
+        return
+    sys.stdout.write(text)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run last30days from a safe JSON request envelope")
     parser.add_argument("--request", help="JSON request file; stdin is used when omitted")
@@ -242,8 +251,7 @@ def main(argv: list[str] | None = None) -> int:
         }
     else:
         code, response = run_request(payload)
-    sys.stdout.write(json.dumps(response, ensure_ascii=False, sort_keys=True))
-    sys.stdout.write("\n")
+    _write_json_response(response)
     return code
 
 
