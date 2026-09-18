@@ -1,26 +1,31 @@
-# n8n STAGING adapter
+# n8n STAGING adapters
 
-This template exposes the research engine to n8n without embedding secrets or
-shell commands in the workflow.
+These templates connect n8n to the asynchronous Research Intelligence gateway
+without embedding secrets or shell commands in workflow JSON.
 
-Flow:
+Submit flow:
 
-Webhook -> Normalize Request -> Research Gateway -> Top 5 Curator -> Respond
+Webhook -> Normalize Request -> Submit Job -> Respond 202
 
-The workflow is intentionally inactive in source control. Configure the runtime
-with two environment variables in the n8n host:
+Status flow:
+
+Webhook -> Validate Job -> Get Status -> Curate Result -> Respond
+
+Both workflows are intentionally inactive in source control. Configure the n8n
+runtime with:
 
 - RESEARCH_GATEWAY_URL
 - RESEARCH_GATEWAY_TOKEN
 
-The gateway must expose POST /v1/research and return the orchestrator bridge
-response envelope. The workflow expects agent JSON schema 1.5 or later.
+The gateway accepts POST /v1/research and returns a queued job id. Results are
+read later from GET /v1/jobs/:job_id. This avoids holding one HTTP request open
+while local transcript research runs for minutes.
 
 Do not place browser cookies, YouTube session data, API keys, or raw chat history
-in the workflow JSON. interest_context should contain only concise non-sensitive
-ranking hints.
+in workflow JSON. interest_context should contain concise, non-sensitive ranking
+hints only.
 
-## Request example
+## Submit request example
 
 ```json
 {
@@ -34,8 +39,9 @@ ranking hints.
 }
 ```
 
-The response contains up to five recommendations sorted by curator_score, with
-topic and personal-fit diagnostics and a privacy-safe recommendation reason.
+The submit workflow returns HTTP 202 with job_id. Call the status workflow with
+`?job_id=<id>`. When the gateway reports completed, it returns up to five
+recommendations sorted by curator_score with privacy-safe recommendation reasons.
 
-This template does not activate n8n, create credentials, expose the local
-machine, or deploy a Cloudflare Worker. Those are separate operational changes.
+These templates do not activate n8n, create credentials, expose the local PC,
+or deploy Cloudflare resources.
