@@ -54,6 +54,41 @@ class PersonalizationV3Tests(unittest.TestCase):
             generic.metadata["personal_relevance"],
         )
 
+    def test_curator_topic_anchors_demote_cross_domain_mcp_false_positive(self):
+        github = self._item(
+            "github",
+            "GitHub pull request agent with MCP, CI checks, and human approval before merge.",
+        )
+        docusign = self._item(
+            "docusign",
+            "Docusign renewal risk agent uses MCP and human approval for contract cancellation.",
+        )
+        ranked = signals.annotate_stream(
+            [docusign, github],
+            ranking_query="GitHub AI agents pull request human approval MCP",
+            freshness_mode="balanced_recent",
+            reference_date="2026-09-17",
+            personal_interest_terms=[
+                "GitHub Actions", "MCP", "pull request governance", "human approval", "CI automation"
+            ],
+        )
+        self.assertEqual("github", ranked[0].item_id)
+        self.assertGreater(github.metadata["topic_anchor_score"], docusign.metadata["topic_anchor_score"])
+        self.assertGreater(github.metadata["curator_score"], docusign.metadata["curator_score"])
+
+    def test_curator_score_is_bounded_and_records_interest_coverage(self):
+        item = self._item("bounded", "GitHub pull request with human approval and MCP automation")
+        signals.annotate_stream(
+            [item],
+            ranking_query="GitHub pull request governance",
+            freshness_mode="balanced_recent",
+            reference_date="2026-09-17",
+            personal_interest_terms=["GitHub", "human approval", "MCP"],
+        )
+        self.assertGreaterEqual(item.metadata["curator_score"], 0.0)
+        self.assertLessEqual(item.metadata["curator_score"], 1.0)
+        self.assertGreater(item.metadata["interest_coverage_score"], 0.5)
+
     def test_annotate_stream_without_context_keeps_legacy_formula(self):
         item = self._item("legacy", "AI agent workflow tutorial")
         ranked = signals.annotate_stream(

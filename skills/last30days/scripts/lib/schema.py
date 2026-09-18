@@ -692,7 +692,7 @@ def candidate_primary_item(candidate: Candidate) -> SourceItem | None:
     return candidate.source_items[0]
 
 
-AGENT_EXPORT_SCHEMA_VERSION = "1.4"
+AGENT_EXPORT_SCHEMA_VERSION = "1.5"
 
 
 def without_sources(report: Report, excluded_sources: set[str]) -> Report:
@@ -872,6 +872,36 @@ def _candidate_personal_relevance(candidate: Candidate) -> float | None:
     return round(max(0.0, min(1.0, float(max(values)))), 4)
 
 
+def _candidate_metadata_score(candidate: Candidate, key: str) -> float | None:
+    values = [
+        item.metadata.get(key)
+        for item in candidate.source_items
+        if isinstance(item.metadata.get(key), (int, float))
+        and not isinstance(item.metadata.get(key), bool)
+    ]
+    if not values:
+        return None
+    return round(max(0.0, min(1.0, float(max(values)))), 4)
+
+
+def _recommendation_reason(candidate: Candidate) -> str | None:
+    curator = _candidate_metadata_score(candidate, "curator_score")
+    if curator is None:
+        return None
+    topic = max(0.0, min(1.0, candidate.local_relevance))
+    anchors = _candidate_metadata_score(candidate, "topic_anchor_score") or 0.0
+    personal = _candidate_personal_relevance(candidate) or 0.0
+    if anchors < 0.25:
+        return "personal signal present, but distinctive topic anchors are weak"
+    if topic >= 0.6 and personal >= 0.55:
+        return "strong topic fit with strong personal fit"
+    if topic >= 0.6:
+        return "strong topic fit with moderate personal fit"
+    if personal >= 0.55:
+        return "moderate topic fit with strong personal fit"
+    return "moderate topic and personal fit"
+
+
 def to_agent_export(
     report: Report,
     *,
@@ -935,7 +965,14 @@ def to_agent_export(
                         max(0.0, min(1.0, candidate.final_score / 100.0)),
                         4,
                     ),
+                    "topic_relevance_score": round(
+                        max(0.0, min(1.0, candidate.local_relevance)),
+                        4,
+                    ),
+                    "topic_anchor_score": _candidate_metadata_score(candidate, "topic_anchor_score"),
                     "personal_relevance_score": _candidate_personal_relevance(candidate),
+                    "curator_score": _candidate_metadata_score(candidate, "curator_score"),
+                    "recommendation_reason": _recommendation_reason(candidate),
                     "cluster": cluster_index,
                 }
             )

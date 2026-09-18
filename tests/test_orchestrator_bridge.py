@@ -74,7 +74,7 @@ def test_run_request_uses_ephemeral_plan_and_returns_agent_contract():
         seen_plan_path = plan_path
         assert plan_path.exists()
         assert json.loads(plan_path.read_text(encoding="utf-8")) == plan
-        output = {"schema_version": "1.4", "results": []}
+        output = {"schema_version": "1.5", "results": []}
         return subprocess.CompletedProcess(argv, 0, json.dumps(output), "")
 
     with mock.patch.object(bridge.subprocess, "run", side_effect=fake_run):
@@ -82,7 +82,7 @@ def test_run_request_uses_ephemeral_plan_and_returns_agent_contract():
 
     assert code == 0
     assert response["ok"] is True
-    assert response["engine_schema_version"] == "1.4"
+    assert response["engine_schema_version"] == "1.5"
     assert seen_plan_path is not None and not seen_plan_path.exists()
 
 

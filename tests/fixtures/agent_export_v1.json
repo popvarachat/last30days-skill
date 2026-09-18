@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.4",
+  "schema_version": "1.5",
   "query": "AI coding agents",
   "generated_at": "2026-07-10T00:00:00Z",
   "window_days": 30,
@@ -53,6 +53,7 @@
         "num_comments": 201
       },
       "relevance_score": 0.92,
+      "topic_relevance_score": 0.95,
       "cluster": 0
     },
     {
@@ -67,6 +68,7 @@
         "reposts": 50
       },
       "relevance_score": 0.84,
+      "topic_relevance_score": 0.88,
       "cluster": 1
     },
     {
@@ -83,6 +85,7 @@
         "rank_score": 0.0
       },
       "relevance_score": 0.7,
+      "topic_relevance_score": 0.78,
       "cluster": 2
     }
   ]

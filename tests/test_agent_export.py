@@ -163,7 +163,7 @@ def _report() -> schema.Report:
     )
 
 
-def test_agent_export_matches_v1_4_golden_contract():
+def test_agent_export_matches_v1_5_golden_contract():
     expected = json.loads(GOLDEN.read_text(encoding="utf-8"))
 
     assert schema.to_agent_export(_report()) == expected
@@ -173,11 +173,17 @@ def test_agent_export_includes_personal_relevance_when_session_context_was_used(
     report = _report()
     item = report.ranked_candidates[0].source_items[0]
     item.metadata["personal_relevance"] = 0.87654
+    item.metadata["topic_anchor_score"] = 0.75
+    item.metadata["curator_score"] = 0.81234
 
     exported = schema.to_agent_export(report)
 
     assert exported["results"][0]["personal_relevance_score"] == 0.8765
+    assert exported["results"][0]["topic_anchor_score"] == 0.75
+    assert exported["results"][0]["curator_score"] == 0.8123
+    assert exported["results"][0]["recommendation_reason"] == "strong topic fit with strong personal fit"
     assert "personal_relevance_score" not in exported["results"][1]
+    assert "curator_score" not in exported["results"][1]
 
 
 def test_agent_export_maps_per_run_source_outcomes_to_states():

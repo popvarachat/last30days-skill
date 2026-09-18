@@ -1640,6 +1640,7 @@ Then add to the engine command:
 - `--github-user={RESOLVED_GITHUB_USER}` (from Step 0.5b, person topics only)
 - `--github-repo={RESOLVED_GITHUB_REPOS}` (from Step 0.5c, product/project topics only)
 - `--interest-context={TERM}` (optional, repeatable): when the host already has explicit current-interest context, pass a few concise, non-sensitive terms that should influence ranking. Never pass raw chat history, private documents, secrets, or full user-profile text.
+  Personalized ranking is topic-gated: generic overlap such as `MCP` or `AI agent` cannot by itself outrank evidence that also matches the query's distinctive anchors. Agent JSON exposes only aggregate curator scores/reasons, never the interest terms.
 - `--trustpilot-domain={RESOLVED_TRUSTPILOT_DOMAIN}` (from Step 0.5d, company/brand topics; the flag also auto-activates Trustpilot)
 - Omit any flag where the value was not resolved (empty).
 
