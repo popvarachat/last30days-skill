@@ -56,6 +56,39 @@ class PipelineV3Tests(unittest.TestCase):
         self.assertIn("grounding", report.items_by_source)
         self.assertEqual("gemini", report.provider_runtime.reasoning_provider)
 
+    def test_youtube_prefers_planner_search_query_over_long_raw_topic(self):
+        subquery = schema.SubQuery(
+            label="primary",
+            search_query="agentic ai control plane github n8n",
+            ranking_query="What matters about agentic AI control planes?",
+            sources=["youtube"],
+        )
+        runtime = schema.ProviderRuntime(
+            reasoning_provider="local",
+            planner_model="test",
+            rerank_model="test",
+        )
+        long_topic = "agentic AI control plane GitHub n8n Cloudflare local executor research automation"
+        with patch.object(pipeline, "which", return_value="yt-dlp"), patch.object(
+            pipeline.youtube_yt,
+            "search_and_transcribe",
+            return_value={"items": []},
+        ) as search_mock:
+            items, artifact = pipeline._retrieve_stream_impl(
+                topic=long_topic,
+                subquery=subquery,
+                source="youtube",
+                config={},
+                depth="quick",
+                date_range=("2026-08-19", "2026-09-18"),
+                runtime=runtime,
+                mock=False,
+                raw_topic=long_topic,
+            )
+        self.assertEqual([], items)
+        self.assertEqual({}, artifact)
+        self.assertEqual("agentic ai control plane github n8n", search_mock.call_args.args[0])
+
     def test_empty_explicit_plan_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "intent"):
             pipeline.run(
