@@ -5073,9 +5073,11 @@ def _retrieve_stream_impl(
             )
         return items, artifact
     if source == "youtube":
-        # Use raw_topic so expand_youtube_queries() generates diverse variants
-        # from the original user topic, not the planner's narrowed search_query.
-        yt_query = raw_topic or subquery.search_query
+        # Prefer the planner's bounded search query. Long raw user topics can
+        # over-constrain ytsearch to zero results even when the planner already
+        # produced a concise high-recall query. search_and_transcribe() still
+        # expands that concise query into YouTube-specific variants.
+        yt_query = subquery.search_query or raw_topic or topic
         result = None
         youtube_failure: str | None = None
         # ScrapeCreators key (when present) is the default-on backup tier: it
