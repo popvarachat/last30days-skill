@@ -1,0 +1,78 @@
+{
+  "name": "Research Intelligence Status STAGING",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "research-intelligence-status-staging",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const q = $json.query ?? {};\nif (!q.job_id || !/^[A-Za-z0-9._:-]{1,128}$/.test(q.job_id)) throw new Error('valid job_id is required');\nreturn [{ json: { job_id: q.job_id } }];"
+      },
+      "id": "validate-job",
+      "name": "Validate Job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.RESEARCH_GATEWAY_URL + '/v1/jobs/' + $json.job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Authorization", "value": "={{ 'Bearer ' + $env.RESEARCH_GATEWAY_TOKEN }}"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $json;\nif (s.status !== 'completed') return [{ json: s }];\nconst result = s.result ?? {};\nconst ranked = [...(result.results ?? [])].sort((a,b) => (b.curator_score ?? b.relevance_score ?? 0) - (a.curator_score ?? a.relevance_score ?? 0));\nreturn [{ json: { ok: true, job_id: s.job_id, status: s.status, query: result.query, generated_at: result.generated_at, recommendations: ranked.slice(0,5).map((x,i) => ({ rank: i+1, title: x.title, url: x.url, source: x.source, published_at: x.published_at, curator_score: x.curator_score, topic_relevance_score: x.topic_relevance_score, topic_anchor_score: x.topic_anchor_score, personal_relevance_score: x.personal_relevance_score, recommendation_reason: x.recommendation_reason, summary: x.summary })) } }];"
+      },
+      "id": "curate-result",
+      "name": "Curate Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1000, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node":"Validate Job","type":"main","index":0}]]},
+    "Validate Job": {"main": [[{"node":"Get Status","type":"main","index":0}]]},
+    "Get Status": {"main": [[{"node":"Curate Result","type":"main","index":0}]]},
+    "Curate Result": {"main": [[{"node":"Respond","type":"main","index":0}]]}
+  },
+  "settings": {"executionOrder": "v1"},
+  "active": false,
+  "pinData": {},
+  "versionId": "research-intelligence-status-staging-v1"
+}

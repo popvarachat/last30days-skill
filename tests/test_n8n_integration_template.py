@@ -3,28 +3,39 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-WORKFLOW = ROOT / "integrations" / "n8n" / "research-intelligence-staging.json"
+SUBMIT = ROOT / "integrations" / "n8n" / "research-intelligence-staging.json"
+STATUS = ROOT / "integrations" / "n8n" / "research-intelligence-status-staging.json"
 
 
-def _workflow():
-    return json.loads(WORKFLOW.read_text(encoding="utf-8"))
+def _load(path):
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_n8n_staging_workflow_is_inactive_and_has_expected_nodes():
-    workflow = _workflow()
+def test_n8n_submit_workflow_is_inactive_and_async():
+    workflow = _load(SUBMIT)
     assert workflow["active"] is False
     names = [node["name"] for node in workflow["nodes"]]
-    assert names == [
-        "Webhook",
-        "Normalize Request",
-        "Research Gateway",
-        "Top 5 Curator",
-        "Respond",
-    ]
+    assert names == ["Webhook", "Normalize Request", "Submit Job", "Respond"]
+    submit = next(node for node in workflow["nodes"] if node["name"] == "Submit Job")
+    assert submit["parameters"]["method"] == "POST"
+    assert "/v1/research" in submit["parameters"]["url"]
+    respond = next(node for node in workflow["nodes"] if node["name"] == "Respond")
+    assert respond["parameters"]["options"]["responseCode"] == 202
 
 
-def test_n8n_template_uses_env_references_and_contains_no_live_secret():
-    text = WORKFLOW.read_text(encoding="utf-8")
+def test_n8n_status_workflow_returns_curator_ranked_top_five():
+    workflow = _load(STATUS)
+    assert workflow["active"] is False
+    names = [node["name"] for node in workflow["nodes"]]
+    assert names == ["Webhook", "Validate Job", "Get Status", "Curate Result", "Respond"]
+    code = next(node for node in workflow["nodes"] if node["name"] == "Curate Result")["parameters"]["jsCode"]
+    assert "curator_score" in code
+    assert "relevance_score" in code
+    assert "slice(0,5)" in code
+
+
+def test_n8n_templates_use_env_references_and_no_live_secrets():
+    text = SUBMIT.read_text(encoding="utf-8") + STATUS.read_text(encoding="utf-8")
     assert "$env.RESEARCH_GATEWAY_URL" in text
     assert "$env.RESEARCH_GATEWAY_TOKEN" in text
     lowered = text.lower()
@@ -33,19 +44,9 @@ def test_n8n_template_uses_env_references_and_contains_no_live_secret():
     assert "youtube cookie" not in lowered
 
 
-def test_n8n_template_ranks_with_curator_score_first():
-    workflow = _workflow()
-    node = next(node for node in workflow["nodes"] if node["name"] == "Top 5 Curator")
-    code = node["parameters"]["jsCode"]
-    assert "curator_score" in code
-    assert "relevance_score" in code
-    assert "slice(0,5)" in code
-
-
-def test_n8n_gateway_posts_agent_request_contract():
-    workflow = _workflow()
-    gateway = next(node for node in workflow["nodes"] if node["name"] == "Research Gateway")
-    params = gateway["parameters"]
-    assert params["method"] == "POST"
-    assert "/v1/research" in params["url"]
-    assert params["sendBody"] is True
+def test_n8n_status_validates_job_id_before_gateway_call():
+    workflow = _load(STATUS)
+    validator = next(node for node in workflow["nodes"] if node["name"] == "Validate Job")
+    assert "A-Za-z0-9._:-" in validator["parameters"]["jsCode"]
+    status = next(node for node in workflow["nodes"] if node["name"] == "Get Status")
+    assert "/v1/jobs/" in status["parameters"]["url"]

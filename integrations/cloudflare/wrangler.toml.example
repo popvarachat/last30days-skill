@@ -1,0 +1,16 @@
+name = "research-intelligence-gateway-staging"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "research-intelligence-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+
+[vars]
+ENVIRONMENT = "staging"
+MAX_REQUEST_BYTES = "131072"
+
+# Secrets are configured with wrangler secret put, never in this file:
+# CLIENT_API_TOKEN
+# EXECUTOR_API_TOKEN
