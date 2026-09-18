@@ -1,0 +1,1 @@
+Route YouTube retrieval through the planner's concise search query before the raw topic, preventing long automation/research prompts from over-constraining yt-dlp search to zero results.
