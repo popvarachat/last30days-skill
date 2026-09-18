@@ -1,0 +1,1 @@
+Add an inactive n8n STAGING workflow template for Research Intelligence that calls the versioned research gateway and returns the top five curator-ranked recommendations without embedding credentials.
