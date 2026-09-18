@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,6 +29,18 @@ def _request(url: str, token: str, method: str = "GET", payload=None, executor_i
         return json.loads(response.read().decode("utf-8"))
 
 
+def _bridge_command(request_path: Path) -> list[str]:
+    venv_python = ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if venv_python.exists():
+        return [str(venv_python), str(BRIDGE), "--request", str(request_path)]
+    uv = shutil.which("uv")
+    if uv:
+        return [uv, "run", "python", str(BRIDGE), "--request", str(request_path)]
+    if sys.version_info >= (3, 12):
+        return [sys.executable, str(BRIDGE), "--request", str(request_path)]
+    raise RuntimeError("Python 3.12+ or uv is required for the research engine")
+
+
 def _run_bridge(request_payload: dict) -> dict:
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
         json.dump(request_payload, handle, ensure_ascii=False)
@@ -37,12 +50,19 @@ def _run_bridge(request_payload: dict) -> dict:
         local_bin = Path.home() / ".local" / "bin"
         child_env["PATH"] = str(local_bin) + os.pathsep + child_env.get("PATH", "")
         child_env.setdefault("FROM_BROWSER", "off")
+        child_env.setdefault("PYTHONUTF8", "1")
+        try:
+            command = _bridge_command(request_path)
+        except RuntimeError:
+            return {"ok": False, "error": "runtime_unavailable"}
         completed = subprocess.run(
-            [sys.executable, str(BRIDGE), "--request", str(request_path)],
+            command,
             cwd=ROOT,
             env=child_env,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=900,
             check=False,
         )
