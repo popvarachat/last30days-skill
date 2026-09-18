@@ -21,7 +21,12 @@ BRIDGE = ROOT / "skills" / "last30days" / "scripts" / "orchestrator_bridge.py"
 
 def _request(url: str, token: str, method: str = "GET", payload=None, executor_id="rdc-local"):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
-    headers = {"Authorization": f"Bearer {token}", "X-Executor-Id": executor_id}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Executor-Id": executor_id,
+        "User-Agent": "ResearchIntelligenceExecutor/1.0",
+        "Accept": "application/json",
+    }
     if data is not None:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)

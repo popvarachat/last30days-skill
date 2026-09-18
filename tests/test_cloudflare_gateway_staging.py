@@ -109,3 +109,24 @@ def test_executor_decodes_bridge_output_as_utf8(monkeypatch):
     assert outcome["ok"] is True
     assert seen["encoding"] == "utf-8"
     assert seen["errors"] == "replace"
+
+
+def test_executor_sets_explicit_user_agent(monkeypatch):
+    module = _load_executor()
+    seen = {}
+
+    class FakeResponse:
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self): return b'{"ok": true}'
+
+    def fake_urlopen(req, timeout=0):
+        seen['headers'] = dict(req.header_items())
+        seen['timeout'] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(module.urllib.request, 'urlopen', fake_urlopen)
+    result = module._request('https://example.test/v1/executor/claim', 'dummy', method='POST', payload={})
+    assert result['ok'] is True
+    assert seen['headers']['User-agent'] == 'ResearchIntelligenceExecutor/1.0'
+    assert seen['headers']['Accept'] == 'application/json'
