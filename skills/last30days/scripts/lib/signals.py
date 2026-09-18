@@ -316,12 +316,22 @@ def annotate_stream(
         item.source_quality = source_quality(item.source)
         if interest_terms:
             personal_score = personalization.annotate_personal_relevance(item, interest_terms)
-            item.local_rank_score = (
-                0.50 * item.local_relevance
-                + 0.20 * (item.freshness / 100.0)
-                + 0.10 * ((eng_score or 0) / 100.0)
-                + 0.20 * personal_score
+            anchor_score = personalization.topic_anchor_coverage(item, prepared_query)
+            interest_coverage = personalization.interest_term_coverage(item, interest_terms)
+            curator = personalization.curator_score(
+                topic_relevance=item.local_relevance,
+                topic_anchor_score=anchor_score,
+                personal_relevance_score=personal_score,
+                interest_coverage_score=interest_coverage,
+                freshness_score=item.freshness / 100.0,
+                source_quality_score=item.source_quality,
             )
+            item.metadata["topic_anchor_score"] = anchor_score
+            item.metadata["interest_coverage_score"] = interest_coverage
+            item.metadata["curator_score"] = curator
+            # Curator score owns personalized ranking; engagement stays a bounded
+            # secondary signal so popularity cannot rescue an off-topic match.
+            item.local_rank_score = (0.85 * curator) + (0.15 * ((eng_score or 0) / 100.0))
         else:
             item.local_rank_score = (
                 0.65 * item.local_relevance
