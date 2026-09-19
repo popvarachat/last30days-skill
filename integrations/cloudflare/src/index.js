@@ -96,6 +96,39 @@ async function claimJob(request, env) {
   return json({ ok: true, job: { job_id: row.job_id, request: JSON.parse(row.request_json), lease_expires_at: row.lease_expires_at } });
 }
 
+async function visionHealth(env) {
+  const active = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM research_jobs WHERE status IN ('queued','running')"
+  ).first();
+  const failed = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM research_jobs WHERE status='failed' AND updated_at >= datetime('now','-1 day')"
+  ).first();
+  const recent = await env.DB.prepare(
+    "SELECT job_id,result_json,updated_at FROM research_jobs WHERE status='completed' AND result_json IS NOT NULL ORDER BY updated_at DESC LIMIT 20"
+  ).all();
+  let verified = null;
+  for (const row of recent.results || []) {
+    try {
+      const result = JSON.parse(row.result_json || "{}");
+      if (typeof result.vision_engine === "string" && result.vision_engine.startsWith("cloudflare-ocr:")) {
+        verified = { job_id: row.job_id, engine: result.vision_engine, completed_at: row.updated_at };
+        break;
+      }
+    } catch {}
+  }
+  return json({
+    ok: true,
+    service: "research-intelligence-gateway",
+    environment: "staging",
+    cloud_ocr_verified: Boolean(verified),
+    cloud_ocr_engine: verified?.engine || null,
+    latest_cloud_ocr_job: verified?.job_id || null,
+    latest_cloud_ocr_at: verified?.completed_at || null,
+    active_jobs: Number(active?.n || 0),
+    failed_jobs_24h: Number(failed?.n || 0),
+  });
+}
+
 async function completeJob(request, env, jobId) {
   if (!authorized(request, env.EXECUTOR_API_TOKEN)) return json({ ok: false, error: "unauthorized" }, 401);
   if (!validJobId(jobId)) return json({ ok: false, error: "invalid_job_id" }, 400);
@@ -122,6 +155,9 @@ export default {
     const path = url.pathname;
     if (request.method === "GET" && path === "/health") {
       return json({ ok: true, service: "research-intelligence-gateway", environment: "staging" });
+    }
+    if (request.method === "GET" && path === "/health/vision") {
+      return visionHealth(env);
     }
     if (request.method === "POST" && path === "/v1/research") {
       return submitJob(request, env);
